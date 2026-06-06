@@ -194,10 +194,10 @@ function CoinFaceHeads() {
       {Array.from({ length: 60 }).map((_, i) => {
         const angle = (i / 60) * Math.PI * 2
         const r1 = 120, r2 = 130
-        const x1 = 140 + r1 * Math.cos(angle)
-        const y1 = 140 + r1 * Math.sin(angle)
-        const x2 = 140 + r2 * Math.cos(angle)
-        const y2 = 140 + r2 * Math.sin(angle)
+        const x1 = parseFloat((140 + r1 * Math.cos(angle)).toFixed(4))
+        const y1 = parseFloat((140 + r1 * Math.sin(angle)).toFixed(4))
+        const x2 = parseFloat((140 + r2 * Math.cos(angle)).toFixed(4))
+        const y2 = parseFloat((140 + r2 * Math.sin(angle)).toFixed(4))
         return (
           <line key={i} x1={x1} y1={y1} x2={x2} y2={y2}
             stroke="rgba(120,80,0,0.5)" strokeWidth="1.5" />
@@ -270,10 +270,10 @@ function CoinFaceTails() {
       {Array.from({ length: 60 }).map((_, i) => {
         const angle = (i / 60) * Math.PI * 2
         const r1 = 120, r2 = 130
-        const x1 = 140 + r1 * Math.cos(angle)
-        const y1 = 140 + r1 * Math.sin(angle)
-        const x2 = 140 + r2 * Math.cos(angle)
-        const y2 = 140 + r2 * Math.sin(angle)
+        const x1 = parseFloat((140 + r1 * Math.cos(angle)).toFixed(4))
+        const y1 = parseFloat((140 + r1 * Math.sin(angle)).toFixed(4))
+        const x2 = parseFloat((140 + r2 * Math.cos(angle)).toFixed(4))
+        const y2 = parseFloat((140 + r2 * Math.sin(angle)).toFixed(4))
         return (
           <line key={i} x1={x1} y1={y1} x2={x2} y2={y2}
             stroke="rgba(60,60,80,0.5)" strokeWidth="1.5" />
