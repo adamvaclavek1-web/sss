@@ -113,7 +113,7 @@ export default function GameArea({ profile, userId, onProfileUpdate }: GameAreaP
   const handleContinue = () => {
     setFlipResult(null)
     setCoinResult(null)
-    setChoice(null)
+    setChoice('heads')
     setGameState('choosing')
   }
 
@@ -154,7 +154,7 @@ export default function GameArea({ profile, userId, onProfileUpdate }: GameAreaP
     setRerollCount(0)
     setFlipResult(null)
     setCoinResult(null)
-    setChoice(null)
+    setChoice('heads')
     setGameState('choosing')
   }
 
