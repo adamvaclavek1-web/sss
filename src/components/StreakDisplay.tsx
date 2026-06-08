@@ -10,53 +10,51 @@ interface StreakDisplayProps {
 }
 
 export default function StreakDisplay({ currentStreak, bestStreak, lastResult }: StreakDisplayProps) {
+  const isHot = currentStreak >= 3
+
   return (
-    <div className="flex items-center justify-center gap-8">
+    <div className="flex items-center justify-center gap-6">
       {/* Current Streak */}
-      <div className="text-center">
-        <div className="flex items-center justify-center gap-2 mb-1">
+      <div className="stat-card flex flex-col items-center min-w-[100px]">
+        <div className="flex items-center gap-1.5 mb-1">
           <motion.div
-            animate={currentStreak > 0 ? { scale: [1, 1.2, 1], rotate: [-5, 5, -5] } : {}}
-            transition={{ duration: 0.5, repeat: currentStreak > 0 ? Infinity : 0, repeatDelay: 2 }}
+            animate={isHot ? { scale: [1, 1.2, 1], rotate: [-5, 5, -5] } : {}}
+            transition={{ duration: 0.6, repeat: isHot ? Infinity : 0, repeatDelay: 1.5 }}
           >
             <Flame
-              size={20}
-              className={currentStreak > 0 ? 'text-orange-400' : 'text-gray-600'}
-              fill={currentStreak > 0 ? '#f97316' : 'transparent'}
+              size={16}
+              style={{ color: currentStreak > 0 ? '#ff8c00' : 'var(--text-muted)' }}
+              fill={currentStreak > 0 ? '#ff8c00' : 'transparent'}
             />
           </motion.div>
-          <span className="text-xs font-semibold uppercase tracking-widest text-gray-500">
+          <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
             Streak
           </span>
         </div>
         <AnimatePresence mode="wait">
           <motion.div
             key={currentStreak}
-            initial={{ scale: 0.5, opacity: 0, y: lastResult === 'won' ? 20 : -20 }}
+            initial={{ scale: 0.6, opacity: 0, y: lastResult === 'won' ? 16 : -16 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.5, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-            className={`text-6xl font-black tabular-nums ${
-              currentStreak > 0 ? 'streak-number neon-gold' : 'text-gray-600'
-            }`}
+            exit={{ scale: 0.6, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 500, damping: 26 }}
+            className={`text-5xl font-black tabular-nums leading-none mt-1 ${currentStreak > 0 ? 'streak-number' : ''}`}
+            style={{ color: currentStreak === 0 ? 'var(--text-muted)' : undefined }}
           >
             {currentStreak}
           </motion.div>
         </AnimatePresence>
       </div>
 
-      {/* Divider */}
-      <div className="h-16 w-px bg-gradient-to-b from-transparent via-gray-600 to-transparent" />
-
       {/* Best Streak */}
-      <div className="text-center">
-        <div className="flex items-center justify-center gap-2 mb-1">
-          <Trophy size={16} className="text-yellow-600" />
-          <span className="text-xs font-semibold uppercase tracking-widest text-gray-500">
+      <div className="stat-card flex flex-col items-center min-w-[100px]">
+        <div className="flex items-center gap-1.5 mb-1">
+          <Trophy size={14} style={{ color: 'var(--accent)' }} />
+          <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>
             Best
           </span>
         </div>
-        <div className="text-3xl font-bold text-gray-400">
+        <div className="text-3xl font-bold leading-none mt-1" style={{ color: 'var(--text)' }}>
           {bestStreak}
         </div>
       </div>

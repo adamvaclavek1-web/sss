@@ -7,6 +7,7 @@ export interface Profile {
   total_flips: number
   total_wins: number
   reroll_count: number
+  owned_themes: string[]
   created_at: string
   updated_at: string
 }

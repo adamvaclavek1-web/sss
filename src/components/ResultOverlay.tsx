@@ -12,30 +12,23 @@ interface ResultOverlayProps {
   isRerolling: boolean
 }
 
-export default function ResultOverlay({
-  result,
-  onContinue,
-  onReroll,
-  onAcceptLoss,
-  isRerolling,
-}: ResultOverlayProps) {
+export default function ResultOverlay({ result, onContinue, onReroll, onAcceptLoss, isRerolling }: ResultOverlayProps) {
   if (!result) return null
 
   return (
     <AnimatePresence>
       {result && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.8, y: 20 }}
+          initial={{ opacity: 0, scale: 0.85, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.8, y: -20 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+          exit={{ opacity: 0, scale: 0.85, y: -20 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 26 }}
           className="w-full"
         >
           {result.won ? (
-            /* WIN STATE */
             <motion.div
               className="game-card p-6 text-center"
-              style={{ border: '1px solid rgba(0,255,136,0.3)', boxShadow: '0 0 40px rgba(0,255,136,0.15)' }}
+              style={{ border: '1px solid rgba(var(--win-rgb),0.3)', boxShadow: '0 0 40px rgba(var(--win-rgb),0.12)' }}
             >
               <motion.div
                 animate={{ rotate: [0, -10, 10, -5, 5, 0] }}
@@ -47,37 +40,36 @@ export default function ResultOverlay({
 
               <motion.h2
                 className="text-3xl font-black mb-1 neon-green"
-                animate={{ scale: [1, 1.05, 1] }}
+                animate={{ scale: [1, 1.06, 1] }}
                 transition={{ duration: 0.4, delay: 0.2 }}
               >
                 CORRECT!
               </motion.h2>
 
-              <p className="text-gray-400 text-sm mb-4">
-                It was <span className="font-bold text-white uppercase">{result.result}</span>.
-                Your streak is now{' '}
+              <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
+                It was <span className="font-bold uppercase" style={{ color: 'var(--text)' }}>{result.result}</span>.
+                {' '}Your streak is now{' '}
                 <span className="neon-gold font-black text-xl">{result.newStreak}</span>
               </p>
 
-              {/* Particle burst effect */}
-              <div className="relative">
+              {/* Particles */}
+              <div className="relative h-0">
                 {Array.from({ length: 8 }).map((_, i) => (
                   <motion.div
                     key={i}
                     className="absolute w-2 h-2 rounded-full"
                     style={{
-                      background: ['#ffd700', '#00ff88', '#ff6b35', '#bf5fff'][i % 4],
-                      left: '50%',
-                      top: '50%',
+                      background: ['var(--accent)', 'var(--win)', '#ff6b35', 'var(--accent2)'][i % 4],
+                      left: '50%', top: 0,
                     }}
                     initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
                     animate={{
-                      x: Math.cos((i / 8) * Math.PI * 2) * 80,
-                      y: Math.sin((i / 8) * Math.PI * 2) * 80,
+                      x: Math.cos((i / 8) * Math.PI * 2) * 90,
+                      y: Math.sin((i / 8) * Math.PI * 2) * 90,
                       opacity: 0,
                       scale: 0,
                     }}
-                    transition={{ duration: 0.8, delay: 0.1, ease: 'easeOut' }}
+                    transition={{ duration: 0.9, delay: 0.1, ease: 'easeOut' }}
                   />
                 ))}
               </div>
@@ -86,7 +78,7 @@ export default function ResultOverlay({
                 onClick={onContinue}
                 className="btn-primary w-full py-4 text-base mt-2"
                 whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileTap={{ scale: 0.97 }}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
@@ -95,10 +87,9 @@ export default function ResultOverlay({
               </motion.button>
             </motion.div>
           ) : (
-            /* LOSS STATE */
             <motion.div
               className="game-card p-6 text-center"
-              style={{ border: '1px solid rgba(255,45,85,0.3)', boxShadow: '0 0 40px rgba(255,45,85,0.15)' }}
+              style={{ border: '1px solid rgba(var(--loss-rgb),0.3)', boxShadow: '0 0 40px rgba(var(--loss-rgb),0.12)' }}
             >
               <motion.div
                 animate={{ rotate: [0, -15, 15, -8, 8, 0] }}
@@ -110,32 +101,31 @@ export default function ResultOverlay({
 
               <motion.h2
                 className="text-3xl font-black mb-1 neon-red"
-                animate={{ scale: [1, 1.05, 1] }}
+                animate={{ scale: [1, 1.06, 1] }}
                 transition={{ duration: 0.4, delay: 0.2 }}
               >
                 WRONG!
               </motion.h2>
 
-              <p className="text-gray-400 text-sm mb-1">
-                It was <span className="font-bold text-white uppercase">{result.result}</span>.
-                Your streak of{' '}
-                <span className="neon-gold font-black">{result.newStreak === 0 ? result.newStreak + (result.rerollCost ? result.rerollCost * 0 : 0) : result.newStreak}</span> is at risk!
+              <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
+                It was <span className="font-bold uppercase" style={{ color: 'var(--text)' }}>{result.result}</span>.
+                {' '}Your streak of{' '}
+                <span className="neon-gold font-black">{result.newStreak === 0 ? currentBefore(result) : result.newStreak}</span> is gone!
               </p>
 
-              {/* Reroll offer */}
               <div
-                className="rounded-xl p-4 my-4"
-                style={{ background: 'rgba(255,45,85,0.08)', border: '1px solid rgba(255,45,85,0.2)' }}
+                className="rounded-2xl p-4 mb-4"
+                style={{ background: 'rgba(var(--loss-rgb),0.07)', border: '1px solid rgba(var(--loss-rgb),0.18)' }}
               >
-                <p className="text-sm font-semibold text-gray-300 mb-1">
+                <p className="text-sm font-semibold mb-1" style={{ color: 'var(--text)' }}>
                   🎲 Save your streak with a Re-Roll
                 </p>
-                <div className="flex items-baseline justify-center gap-1 mb-2">
-                  <span className="text-4xl font-black text-white">${result.rerollCost}</span>
-                  <span className="text-gray-500 text-sm">USD</span>
+                <div className="flex items-baseline justify-center gap-1 my-2">
+                  <span className="text-4xl font-black" style={{ color: 'var(--text)' }}>${result.rerollCost}</span>
+                  <span className="text-sm" style={{ color: 'var(--text-muted)' }}>USD</span>
                 </div>
                 {typeof result.rerollCount === 'number' && result.rerollCount > 0 && (
-                  <p className="text-xs text-gray-600 mb-3">
+                  <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
                     Re-roll #{(result.rerollCount || 0) + 1} — price doubles each time
                   </p>
                 )}
@@ -145,27 +135,18 @@ export default function ResultOverlay({
                   disabled={isRerolling}
                   className="btn-primary w-full py-3 text-sm flex items-center justify-center gap-2 mb-2"
                   whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileTap={{ scale: 0.97 }}
                 >
                   {isRerolling ? (
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                    >
+                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}>
                       <RefreshCw size={16} />
                     </motion.div>
                   ) : (
-                    <>
-                      <RefreshCw size={16} />
-                      Pay ${result.rerollCost} & Re-Roll
-                    </>
+                    <><RefreshCw size={16} />Pay ${result.rerollCost} & Re-Roll</>
                   )}
                 </motion.button>
 
-                <button
-                  onClick={onAcceptLoss}
-                  className="btn-ghost w-full py-2 text-sm"
-                >
+                <button onClick={onAcceptLoss} className="btn-ghost w-full py-2 text-sm">
                   Accept loss (streak → 0)
                 </button>
               </div>
@@ -175,4 +156,8 @@ export default function ResultOverlay({
       )}
     </AnimatePresence>
   )
+}
+
+function currentBefore(result: FlipResult) {
+  return result.newStreak === 0 ? '?' : result.newStreak
 }

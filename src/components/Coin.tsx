@@ -1,7 +1,7 @@
 'use client'
 
-import { motion, useAnimation, PanInfo } from 'framer-motion'
-import { useRef, useState } from 'react'
+import { useRef, useEffect, useCallback } from 'react'
+import { motion } from 'framer-motion'
 
 interface CoinProps {
   onSwipeUp: () => void
@@ -10,299 +10,338 @@ interface CoinProps {
   disabled: boolean
 }
 
+const D = 230
+const R = 115
+const T = 18
+const K = 46
+const SEG_W = (2 * Math.PI * R) / K
+
 export default function Coin({ onSwipeUp, isFlipping, result, disabled }: CoinProps) {
-  const controls = useAnimation()
-  const [isDragging, setIsDragging] = useState(false)
-  const dragStartY = useRef(0)
+  const coinRef = useRef<HTMLDivElement>(null)
+  const sceneRef = useRef<HTMLDivElement>(null)
+  const pointerStartY = useRef<number | null>(null)
+  const flipAnim = useRef<Animation | null>(null)
 
-  const handleDragStart = () => {
+  // Coin flip animation
+  useEffect(() => {
+    if (!coinRef.current) return
+    if (isFlipping) {
+      flipAnim.current?.cancel()
+      flipAnim.current = coinRef.current.animate(
+        [
+          { transform: 'rotateX(0deg)',     filter: 'blur(0px)' },
+          { transform: 'rotateX(-360deg)',  filter: 'blur(3px)', offset: 0.18 },
+          { transform: 'rotateX(-900deg)',  filter: 'blur(5px)', offset: 0.45 },
+          { transform: 'rotateX(-1440deg)', filter: 'blur(5px)', offset: 0.72 },
+          { transform: 'rotateX(-1800deg)', filter: 'blur(0px)' },
+        ],
+        { duration: 1800, easing: 'cubic-bezier(0.2,0.8,0.4,1)', fill: 'forwards' }
+      )
+    }
+  }, [isFlipping])
+
+  // Land on correct face after flip
+  useEffect(() => {
+    if (!coinRef.current || result === null || isFlipping) return
+    // -1800 mod 360 = 0 → heads face up
+    // -1980 mod 360 = 180 → tails face up (tails face baked with rotateX(180deg))
+    const target = result === 'tails' ? -1980 : -1800
+    flipAnim.current?.cancel()
+    flipAnim.current = coinRef.current.animate(
+      [
+        { transform: 'rotateX(-1800deg)' },
+        { transform: `rotateX(${target + 12}deg)` },
+        { transform: `rotateX(${target}deg)` },
+      ],
+      { duration: 400, easing: 'ease-out', fill: 'forwards' }
+    )
+  }, [result, isFlipping])
+
+  // Reset coin when going back to choosing
+  useEffect(() => {
+    if (!coinRef.current || isFlipping || result !== null) return
+    flipAnim.current?.cancel()
+    coinRef.current.style.transform = 'rotateX(0deg)'
+    coinRef.current.style.filter = ''
+  }, [isFlipping, result])
+
+  // Pointer / swipe handling
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
     if (disabled) return
-    setIsDragging(true)
-  }
+    pointerStartY.current = e.clientY
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+  }, [disabled])
 
-  const handleDrag = (_: unknown, info: PanInfo) => {
-    if (disabled) return
-    // Only allow upward drag
-    if (info.offset.y < 0) {
-      controls.set({ y: info.offset.y * 0.4 })
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (pointerStartY.current === null || disabled || !sceneRef.current) return
+    const dy = e.clientY - pointerStartY.current
+    if (dy < 0) {
+      sceneRef.current.style.transform = `translateY(${dy * 0.35}px)`
     }
-  }
+  }, [disabled])
 
-  const handleDragEnd = (_: unknown, info: PanInfo) => {
-    if (disabled) {
-      setIsDragging(false)
-      return
-    }
-    setIsDragging(false)
-
-    // Trigger flip if swiped up more than 60px or velocity is high enough
-    if (info.offset.y < -60 || info.velocity.y < -400) {
-      controls.start({ y: 0 })
-      onSwipeUp()
-    } else {
-      // Snap back
-      controls.start({ y: 0, transition: { type: 'spring', stiffness: 400, damping: 20 } })
-    }
-  }
-
-  // Determine coin final rotation based on result
-  const finalRotation = result === 'tails' ? 180 : 0
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    if (pointerStartY.current === null) return
+    const dy = e.clientY - pointerStartY.current
+    if (sceneRef.current) sceneRef.current.style.transform = ''
+    if (!disabled && dy < -55) onSwipeUp()
+    pointerStartY.current = null
+  }, [disabled, onSwipeUp])
 
   return (
-    <div className="relative flex items-center justify-center select-none">
-      {/* Glow ring behind coin */}
+    <div className="relative flex items-center justify-center select-none" style={{ width: D, height: D + 60 }}>
+      {/* Ambient glow ring */}
       <motion.div
-        className="absolute rounded-full"
+        className="absolute rounded-full pointer-events-none"
         style={{
-          width: 320,
-          height: 320,
-          background: 'radial-gradient(circle, rgba(255,215,0,0.15) 0%, transparent 70%)',
+          width: D + 80,
+          height: D + 80,
+          top: 30,
+          left: -40,
+          background: 'radial-gradient(circle, rgba(var(--accent-rgb),0.12) 0%, transparent 65%)',
         }}
         animate={
           isFlipping
-            ? { scale: [1, 1.3, 1], opacity: [0.5, 1, 0.5] }
-            : result === null
-            ? { scale: 1, opacity: 0.5 }
+            ? { scale: [1, 1.25, 1], opacity: [0.6, 1, 0.6] }
             : result !== null
-            ? { scale: 1.1, opacity: 0.8 }
-            : {}
+            ? { scale: 1.1, opacity: 0.9 }
+            : { scale: 1, opacity: 0.5 }
         }
-        transition={{ duration: 0.6, repeat: isFlipping ? Infinity : 0 }}
+        transition={{ duration: 0.7, repeat: isFlipping ? Infinity : 0 }}
       />
 
-      {/* Draggable wrapper */}
-      <motion.div
-        drag={!disabled && !isFlipping ? 'y' : false}
-        dragConstraints={{ top: -150, bottom: 20 }}
-        dragElastic={0.2}
-        onDragStart={handleDragStart}
-        onDrag={handleDrag}
-        onDragEnd={handleDragEnd}
-        animate={controls}
-        whileTap={!disabled && !isFlipping ? { scale: 0.96 } : {}}
-        style={{ cursor: disabled || isFlipping ? 'default' : 'grab', touchAction: 'none' }}
-      >
-        {/* Coin container with 3D perspective */}
-        <div className="coin-wrapper" style={{ width: 280, height: 280 }}>
-          <motion.div
-            className="coin-inner"
-            style={{ width: 280, height: 280 }}
-            animate={
-              isFlipping
-                ? {
-                    rotateY: [0, 360, 720, 1080, 1440, 1800 + finalRotation * 5],
-                    filter: ['blur(0px)', 'blur(4px)', 'blur(4px)', 'blur(4px)', 'blur(2px)', 'blur(0px)'],
-                  }
-                : result !== null
-                ? {
-                    rotateY: finalRotation,
-                    y: [0, -16, 0, -8, 0, -4, 0],
-                  }
-                : { rotateY: 0, filter: 'blur(0px)' }
-            }
-            transition={
-              isFlipping
-                ? { duration: 1.8, ease: [0.2, 0.8, 0.4, 1] }
-                : result !== null
-                ? { duration: 0.7, ease: 'easeOut' }
-                : { duration: 0.3 }
-            }
-          >
-            {/* HEADS face */}
-            <div className="coin-face" style={{ position: 'relative', width: 280, height: 280 }}>
-              <CoinFaceHeads />
-            </div>
-
-            {/* TAILS face */}
-            <div
-              className="coin-face coin-tails"
-              style={{ position: 'absolute', top: 0, left: 0, width: 280, height: 280 }}
-            >
-              <CoinFaceTails />
-            </div>
-          </motion.div>
-        </div>
-      </motion.div>
-
-      {/* Swipe hint arrow */}
+      {/* Swipe hint */}
       {!disabled && !isFlipping && result === null && (
         <motion.div
-          className="absolute -top-16 flex flex-col items-center gap-1 pointer-events-none"
+          className="absolute flex flex-col items-center gap-1 pointer-events-none"
+          style={{ top: -4 }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 1 }}
+          transition={{ delay: 1.2 }}
         >
           <motion.div
-            animate={{ y: [0, -8, 0] }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+            animate={{ y: [0, -7, 0] }}
+            transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
           >
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="opacity-60">
-              <path d="M12 19V5M5 12l7-7 7 7" stroke="#ffd700" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+              <path d="M12 19V5M5 12l7-7 7 7" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </motion.div>
-          <span className="text-xs font-semibold opacity-50" style={{ color: '#ffd700', letterSpacing: '0.1em' }}>
+          <span style={{ color: 'var(--accent)', fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', opacity: 0.55 }}>
             SWIPE UP
           </span>
         </motion.div>
       )}
+
+      {/* Scene wrapper — handles lift on swipe */}
+      <div
+        ref={sceneRef}
+        style={{
+          position: 'absolute',
+          top: 30,
+          left: 0,
+          width: D,
+          height: D,
+          transition: 'transform 0.08s linear',
+        }}
+      >
+        {/* Perspective scene */}
+        <div className="coin-scene" style={{ width: D, height: D }}>
+          {/* Coin body */}
+          <div
+            ref={coinRef}
+            className="coin-body"
+            style={{
+              width: D,
+              height: D,
+              position: 'relative',
+              cursor: disabled || isFlipping ? 'default' : 'grab',
+              touchAction: 'none',
+            }}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+          >
+            {/* HEADS face */}
+            <div className="coin-face coin-face-heads" style={{ position: 'absolute', inset: 0 }}>
+              <CoinFaceHeads />
+            </div>
+
+            {/* TAILS face */}
+            <div className="coin-face" style={{ position: 'absolute', inset: 0, backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden', transform: `rotateX(180deg) translateZ(${T / 2}px)`, borderRadius: '50%', overflow: 'hidden' }}>
+              <CoinFaceTails />
+            </div>
+
+            {/* Edge segments */}
+            {Array.from({ length: K }).map((_, i) => {
+              const phi = (i / K) * 360
+              const brightness = 35 + (i % 3) * 8
+              return (
+                <div
+                  key={i}
+                  className="coin-edge-seg"
+                  style={{
+                    width: SEG_W + 0.5,
+                    height: T,
+                    marginLeft: -(SEG_W + 0.5) / 2,
+                    marginTop: -T / 2,
+                    transform: `rotateZ(${phi - 90}deg) translateY(${R}px) rotateX(90deg)`,
+                    background: `linear-gradient(180deg, hsl(38,${70 + (i%2)*10}%,${brightness + 8}%) 0%, hsl(35,65%,${brightness}%) 100%)`,
+                  }}
+                />
+              )
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Shadow beneath coin */}
+      <motion.div
+        className="absolute rounded-full pointer-events-none"
+        style={{
+          bottom: 0,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: 180,
+          height: 20,
+          background: 'radial-gradient(ellipse, rgba(0,0,0,0.5) 0%, transparent 70%)',
+          filter: 'blur(8px)',
+        }}
+        animate={isFlipping ? { scaleX: [1, 0.6, 1], opacity: [0.6, 0.2, 0.6] } : { scaleX: 1, opacity: 0.6 }}
+        transition={{ duration: 0.6, repeat: isFlipping ? Infinity : 0 }}
+      />
     </div>
   )
 }
 
+/* ===================== COIN FACES ===================== */
+
 function CoinFaceHeads() {
   return (
-    <svg width="280" height="280" viewBox="0 0 280 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width={D} height={D} viewBox={`0 0 ${D} ${D}`} fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <radialGradient id="headsGrad" cx="38%" cy="35%" r="65%">
-          <stop offset="0%" stopColor="#fff8b0" />
-          <stop offset="35%" stopColor="#ffd700" />
-          <stop offset="70%" stopColor="#b8860b" />
-          <stop offset="100%" stopColor="#7a5800" />
+        <radialGradient id="hg" cx="38%" cy="32%" r="68%">
+          <stop offset="0%"   stopColor="#fff9c4" />
+          <stop offset="30%"  stopColor="#ffd23f" />
+          <stop offset="65%"  stopColor="#c47b00" />
+          <stop offset="100%" stopColor="#7a4a00" />
         </radialGradient>
-        <radialGradient id="headsInnerGrad" cx="40%" cy="40%" r="60%">
-          <stop offset="0%" stopColor="#fff4a0" />
-          <stop offset="50%" stopColor="#f0c000" />
-          <stop offset="100%" stopColor="#a07000" />
+        <radialGradient id="hig" cx="42%" cy="38%" r="60%">
+          <stop offset="0%"   stopColor="#fff4a0" />
+          <stop offset="50%"  stopColor="#e8b400" />
+          <stop offset="100%" stopColor="#9a6000" />
         </radialGradient>
-        <filter id="coinShadow">
-          <feDropShadow dx="0" dy="6" stdDeviation="12" floodColor="#00000080" />
+        <filter id="hs">
+          <feDropShadow dx="0" dy="5" stdDeviation="10" floodColor="#00000070" />
         </filter>
-        <filter id="innerGlow">
-          <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-          <feMerge>
-            <feMergeNode in="coloredBlur"/>
-            <feMergeNode in="SourceGraphic"/>
-          </feMerge>
+        <filter id="hg2">
+          <feGaussianBlur stdDeviation="2.5" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
       </defs>
-
-      {/* Outer coin shadow */}
-      <circle cx="140" cy="144" r="132" fill="rgba(0,0,0,0.4)" />
-
-      {/* Main coin body */}
-      <circle cx="140" cy="140" r="132" fill="url(#headsGrad)" filter="url(#coinShadow)" />
-
-      {/* Edge detail ring */}
-      <circle cx="140" cy="140" r="130" fill="none" stroke="#7a5800" strokeWidth="3" opacity="0.6" />
-      <circle cx="140" cy="140" r="124" fill="none" stroke="#fff0a0" strokeWidth="1.5" opacity="0.3" />
-
-      {/* Inner raised platform */}
-      <circle cx="140" cy="140" r="110" fill="url(#headsInnerGrad)" />
-      <circle cx="140" cy="140" r="108" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" />
-
+      {/* Shadow */}
+      <circle cx="115" cy="119" r="112" fill="rgba(0,0,0,0.35)" />
+      {/* Body */}
+      <circle cx="115" cy="115" r="112" fill="url(#hg)" filter="url(#hs)" />
+      {/* Rim */}
+      <circle cx="115" cy="115" r="110" fill="none" stroke="#7a4a00" strokeWidth="2.5" opacity="0.55" />
+      <circle cx="115" cy="115" r="104" fill="none" stroke="rgba(255,245,150,0.25)" strokeWidth="1.5" />
+      {/* Inner disc */}
+      <circle cx="115" cy="115" r="92" fill="url(#hig)" />
+      <circle cx="115" cy="115" r="90" fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="1.5" />
       {/* Reeded edge ticks */}
-      {Array.from({ length: 60 }).map((_, i) => {
-        const angle = (i / 60) * Math.PI * 2
-        const r1 = 120, r2 = 130
-        const x1 = parseFloat((140 + r1 * Math.cos(angle)).toFixed(4))
-        const y1 = parseFloat((140 + r1 * Math.sin(angle)).toFixed(4))
-        const x2 = parseFloat((140 + r2 * Math.cos(angle)).toFixed(4))
-        const y2 = parseFloat((140 + r2 * Math.sin(angle)).toFixed(4))
-        return (
-          <line key={i} x1={x1} y1={y1} x2={x2} y2={y2}
-            stroke="rgba(120,80,0,0.5)" strokeWidth="1.5" />
-        )
+      {Array.from({ length: 56 }).map((_, i) => {
+        const a = (i / 56) * Math.PI * 2
+        const x1 = parseFloat((115 + 98 * Math.cos(a)).toFixed(3))
+        const y1 = parseFloat((115 + 98 * Math.sin(a)).toFixed(3))
+        const x2 = parseFloat((115 + 108 * Math.cos(a)).toFixed(3))
+        const y2 = parseFloat((115 + 108 * Math.sin(a)).toFixed(3))
+        return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(110,70,0,0.45)" strokeWidth="1.5" />
       })}
-
-      {/* Crown / H letter */}
-      <text x="140" y="165" textAnchor="middle" fontSize="90" fontWeight="900"
-        fill="rgba(80,50,0,0.7)" fontFamily="serif" letterSpacing="-2">
-        H
-      </text>
-      <text x="140" y="162" textAnchor="middle" fontSize="90" fontWeight="900"
-        fill="rgba(255,240,150,0.9)" fontFamily="serif" letterSpacing="-2">
-        H
-      </text>
-
-      {/* Stars */}
-      {[[-50, -40], [50, -40], [0, -60]].map(([dx, dy], i) => (
-        <text key={i} x={140 + dx} y={140 + dy} textAnchor="middle" fontSize="18"
-          fill="rgba(255,240,100,0.8)">★</text>
-      ))}
-
+      {/* Crown */}
+      <path
+        d="M115 52 L96 74 L78 60 L83 88 L147 88 L152 60 L134 74 Z"
+        fill="rgba(255,210,50,0.85)"
+        stroke="rgba(120,75,0,0.6)"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      {/* Crown jewels */}
+      <circle cx="115" cy="54" r="4.5" fill="#ff5c5c" />
+      <circle cx="96" cy="74" r="3.5" fill="#5cc4ff" />
+      <circle cx="134" cy="74" r="3.5" fill="#5cc4ff" />
+      {/* H letter — shadow */}
+      <text x="115" y="152" textAnchor="middle" fontSize="72" fontWeight="900"
+        fill="rgba(70,42,0,0.65)" fontFamily="Georgia, serif">H</text>
+      {/* H letter — main */}
+      <text x="115" y="149" textAnchor="middle" fontSize="72" fontWeight="900"
+        fill="rgba(255,240,130,0.92)" fontFamily="Georgia, serif" filter="url(#hg2)">H</text>
       {/* HEADS label */}
-      <text x="140" y="200" textAnchor="middle" fontSize="14" fontWeight="700"
-        fill="rgba(80,50,0,0.8)" fontFamily="sans-serif" letterSpacing="4">
-        HEADS
-      </text>
-
-      {/* Shine highlight */}
-      <ellipse cx="105" cy="96" rx="40" ry="24" fill="rgba(255,255,255,0.18)" transform="rotate(-30 105 96)" />
+      <text x="115" y="175" textAnchor="middle" fontSize="12" fontWeight="700"
+        fill="rgba(70,42,0,0.7)" fontFamily="'Space Grotesk', sans-serif" letterSpacing="4">HEADS</text>
+      {/* Shine */}
+      <ellipse cx="88" cy="80" rx="34" ry="20" fill="rgba(255,255,255,0.16)" transform="rotate(-28 88 80)" />
     </svg>
   )
 }
 
 function CoinFaceTails() {
   return (
-    <svg width="280" height="280" viewBox="0 0 280 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width={D} height={D} viewBox={`0 0 ${D} ${D}`} fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <radialGradient id="tailsGrad" cx="38%" cy="35%" r="65%">
-          <stop offset="0%" stopColor="#e8e8f0" />
-          <stop offset="35%" stopColor="#c0c0d0" />
-          <stop offset="70%" stopColor="#808090" />
-          <stop offset="100%" stopColor="#404050" />
+        <radialGradient id="tg" cx="38%" cy="32%" r="68%">
+          <stop offset="0%"   stopColor="#f0f0fa" />
+          <stop offset="30%"  stopColor="#c4c4d8" />
+          <stop offset="65%"  stopColor="#787890" />
+          <stop offset="100%" stopColor="#383848" />
         </radialGradient>
-        <radialGradient id="tailsInnerGrad" cx="40%" cy="40%" r="60%">
-          <stop offset="0%" stopColor="#f0f0ff" />
-          <stop offset="50%" stopColor="#a0a0b8" />
-          <stop offset="100%" stopColor="#606070" />
+        <radialGradient id="tig" cx="42%" cy="38%" r="60%">
+          <stop offset="0%"   stopColor="#ebebff" />
+          <stop offset="50%"  stopColor="#9898b8" />
+          <stop offset="100%" stopColor="#585870" />
         </radialGradient>
-        <filter id="coinShadow2">
-          <feDropShadow dx="0" dy="6" stdDeviation="12" floodColor="#00000080" />
+        <filter id="ts">
+          <feDropShadow dx="0" dy="5" stdDeviation="10" floodColor="#00000070" />
         </filter>
       </defs>
-
-      {/* Outer coin shadow */}
-      <circle cx="140" cy="144" r="132" fill="rgba(0,0,0,0.4)" />
-
-      {/* Main coin body */}
-      <circle cx="140" cy="140" r="132" fill="url(#tailsGrad)" filter="url(#coinShadow2)" />
-
-      {/* Edge */}
-      <circle cx="140" cy="140" r="130" fill="none" stroke="#404050" strokeWidth="3" opacity="0.6" />
-      <circle cx="140" cy="140" r="124" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" />
-
-      {/* Inner platform */}
-      <circle cx="140" cy="140" r="110" fill="url(#tailsInnerGrad)" />
-      <circle cx="140" cy="140" r="108" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="2" />
-
+      {/* Shadow */}
+      <circle cx="115" cy="119" r="112" fill="rgba(0,0,0,0.35)" />
+      {/* Body */}
+      <circle cx="115" cy="115" r="112" fill="url(#tg)" filter="url(#ts)" />
+      {/* Rim */}
+      <circle cx="115" cy="115" r="110" fill="none" stroke="#383848" strokeWidth="2.5" opacity="0.55" />
+      <circle cx="115" cy="115" r="104" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" />
+      {/* Inner disc */}
+      <circle cx="115" cy="115" r="92" fill="url(#tig)" />
+      <circle cx="115" cy="115" r="90" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" />
       {/* Reeded edge ticks */}
-      {Array.from({ length: 60 }).map((_, i) => {
-        const angle = (i / 60) * Math.PI * 2
-        const r1 = 120, r2 = 130
-        const x1 = parseFloat((140 + r1 * Math.cos(angle)).toFixed(4))
-        const y1 = parseFloat((140 + r1 * Math.sin(angle)).toFixed(4))
-        const x2 = parseFloat((140 + r2 * Math.cos(angle)).toFixed(4))
-        const y2 = parseFloat((140 + r2 * Math.sin(angle)).toFixed(4))
-        return (
-          <line key={i} x1={x1} y1={y1} x2={x2} y2={y2}
-            stroke="rgba(60,60,80,0.5)" strokeWidth="1.5" />
-        )
+      {Array.from({ length: 56 }).map((_, i) => {
+        const a = (i / 56) * Math.PI * 2
+        const x1 = parseFloat((115 + 98 * Math.cos(a)).toFixed(3))
+        const y1 = parseFloat((115 + 98 * Math.sin(a)).toFixed(3))
+        const x2 = parseFloat((115 + 108 * Math.cos(a)).toFixed(3))
+        const y2 = parseFloat((115 + 108 * Math.sin(a)).toFixed(3))
+        return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(40,40,60,0.45)" strokeWidth="1.5" />
       })}
-
-      {/* T letter */}
-      <text x="140" y="165" textAnchor="middle" fontSize="90" fontWeight="900"
-        fill="rgba(30,30,50,0.7)" fontFamily="serif" letterSpacing="-2">
-        T
-      </text>
-      <text x="140" y="162" textAnchor="middle" fontSize="90" fontWeight="900"
-        fill="rgba(220,220,255,0.9)" fontFamily="serif" letterSpacing="-2">
-        T
-      </text>
-
-      {/* Dots */}
-      {[[-50, -40], [50, -40], [0, -60]].map(([dx, dy], i) => (
-        <circle key={i} cx={140 + dx} cy={140 + dy} r="5" fill="rgba(200,200,255,0.7)" />
-      ))}
-
+      {/* Eagle / star emblem */}
+      <polygon
+        points="115,55 120,70 136,70 123,80 128,95 115,85 102,95 107,80 94,70 110,70"
+        fill="rgba(200,200,240,0.8)"
+        stroke="rgba(30,30,50,0.5)"
+        strokeWidth="1"
+      />
+      {/* T letter — shadow */}
+      <text x="115" y="152" textAnchor="middle" fontSize="72" fontWeight="900"
+        fill="rgba(20,20,40,0.65)" fontFamily="Georgia, serif">T</text>
+      {/* T letter — main */}
+      <text x="115" y="149" textAnchor="middle" fontSize="72" fontWeight="900"
+        fill="rgba(220,220,255,0.92)" fontFamily="Georgia, serif">T</text>
       {/* TAILS label */}
-      <text x="140" y="200" textAnchor="middle" fontSize="14" fontWeight="700"
-        fill="rgba(30,30,50,0.8)" fontFamily="sans-serif" letterSpacing="4">
-        TAILS
-      </text>
-
-      {/* Shine highlight */}
-      <ellipse cx="105" cy="96" rx="40" ry="24" fill="rgba(255,255,255,0.12)" transform="rotate(-30 105 96)" />
+      <text x="115" y="175" textAnchor="middle" fontSize="12" fontWeight="700"
+        fill="rgba(20,20,40,0.7)" fontFamily="'Space Grotesk', sans-serif" letterSpacing="4">TAILS</text>
+      {/* Shine */}
+      <ellipse cx="88" cy="80" rx="34" ry="20" fill="rgba(255,255,255,0.10)" transform="rotate(-28 88 80)" />
     </svg>
   )
 }

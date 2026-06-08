@@ -22,34 +22,50 @@ export async function POST(request: NextRequest) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session
-    const { userId, rerollCount, currentStreak } = session.metadata!
+    const { userId, type, themeId, rerollCount, currentStreak } = session.metadata!
 
     const supabase = await createAdminClient()
 
-    // Mark purchase as completed
-    await supabase
-      .from('reroll_purchases')
-      .update({ status: 'completed' })
-      .eq('stripe_session_id', session.id)
-
-    // Restore streak and increment reroll_count
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('current_streak, best_streak')
-      .eq('id', userId)
-      .single()
-
-    if (profile) {
-      const restoredStreak = parseInt(currentStreak)
-      await supabase
+    if (type === 'theme_purchase' && themeId) {
+      // Grant the theme by appending to owned_themes array
+      const { data: profile } = await supabase
         .from('profiles')
-        .update({
-          current_streak: restoredStreak,
-          best_streak: Math.max(profile.best_streak, restoredStreak),
-          reroll_count: parseInt(rerollCount) + 1,
-          updated_at: new Date().toISOString(),
-        })
+        .select('owned_themes')
         .eq('id', userId)
+        .single()
+
+      const existing: string[] = (profile as any)?.owned_themes ?? []
+      if (!existing.includes(themeId)) {
+        await supabase
+          .from('profiles')
+          .update({ owned_themes: [...existing, themeId], updated_at: new Date().toISOString() })
+          .eq('id', userId)
+      }
+    } else {
+      // Re-roll purchase
+      await supabase
+        .from('reroll_purchases')
+        .update({ status: 'completed' })
+        .eq('stripe_session_id', session.id)
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('current_streak, best_streak')
+        .eq('id', userId)
+        .single()
+
+      if (profile) {
+        const restoredStreak = parseInt(currentStreak)
+        await supabase
+          .from('profiles')
+          .update({
+            current_streak: restoredStreak,
+            best_streak: Math.max(profile.best_streak, restoredStreak),
+            reroll_count: parseInt(rerollCount) + 1,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', userId)
+      }
     }
   }
 

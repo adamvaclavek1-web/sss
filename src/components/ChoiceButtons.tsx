@@ -19,34 +19,27 @@ export default function ChoiceButtons({ selected, onSelect, disabled }: ChoiceBu
             key={side}
             onClick={() => !disabled && onSelect(side)}
             disabled={disabled}
-            whileHover={!disabled ? { scale: 1.05 } : {}}
+            whileHover={!disabled ? { scale: 1.05, y: -2 } : {}}
             whileTap={!disabled ? { scale: 0.95 } : {}}
-            className={`
-              relative px-8 py-4 rounded-2xl font-bold text-sm uppercase tracking-widest
-              border-2 transition-all duration-200
-              ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
-              ${isSelected
-                ? 'choice-btn-selected text-yellow-300'
-                : 'border-gray-700 bg-gray-900/50 text-gray-400 hover:border-gray-500 hover:text-gray-200'
-              }
-            `}
+            className={`choice-btn ${isSelected ? 'choice-btn-selected' : ''} ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
           >
             {isSelected && (
               <motion.div
-                layoutId="selection-indicator"
-                className="absolute inset-0 rounded-2xl"
+                layoutId="sel"
+                className="absolute inset-0 rounded-2xl pointer-events-none"
                 style={{
-                  background: 'linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,140,0,0.1))',
-                  border: '2px solid rgba(255,215,0,0.6)',
-                  boxShadow: '0 0 20px rgba(255,215,0,0.25), inset 0 0 20px rgba(255,215,0,0.05)',
+                  background: 'rgba(var(--accent-rgb),0.10)',
+                  border: '2px solid rgba(var(--accent-rgb),0.6)',
+                  boxShadow: '0 0 24px rgba(var(--accent-rgb),0.2)',
+                  borderRadius: 18,
                 }}
                 initial={false}
                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               />
             )}
-            <span className="relative z-10 flex flex-col items-center gap-1">
-              <span className="text-2xl">{side === 'heads' ? '👑' : '🦅'}</span>
-              <span>{side}</span>
+            <span className="relative z-10 flex flex-col items-center gap-1.5">
+              <span className="text-2xl">{side === 'heads' ? '👑' : '⭐'}</span>
+              <span className="text-xs">{side.toUpperCase()}</span>
             </span>
           </motion.button>
         )
