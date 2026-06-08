@@ -4,7 +4,7 @@ import { useRef, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 
 interface CoinProps {
-  onSwipeUp: () => void
+  onFlip: () => void
   isFlipping: boolean
   result: 'heads' | 'tails' | null
   disabled: boolean
@@ -29,7 +29,7 @@ function reedsFor(r1: number, r2: number, n: number, cx = 115, cy = 115) {
   })
 }
 
-export default function Coin({ onSwipeUp, isFlipping, result, disabled }: CoinProps) {
+export default function Coin({ onFlip, isFlipping, result, disabled }: CoinProps) {
   const coinRef = useRef<HTMLDivElement>(null)
   const sceneRef = useRef<HTMLDivElement>(null)
   const pointerStartY = useRef<number | null>(null)
@@ -89,9 +89,9 @@ export default function Coin({ onSwipeUp, isFlipping, result, disabled }: CoinPr
     if (pointerStartY.current === null) return
     const dy = e.clientY - pointerStartY.current
     if (sceneRef.current) sceneRef.current.style.transform = ''
-    if (!disabled && dy < -55) onSwipeUp()
+    if (!disabled && dy < -55) onFlip()
     pointerStartY.current = null
-  }, [disabled, onSwipeUp])
+  }, [disabled, onFlip])
 
   return (
     <div className="relative flex items-center justify-center select-none" style={{ width: D, height: D + 60 }}>
@@ -111,19 +111,19 @@ export default function Coin({ onSwipeUp, isFlipping, result, disabled }: CoinPr
         transition={{ duration: 0.65, repeat: isFlipping ? Infinity : 0 }}
       />
 
-      {/* Swipe hint */}
+      {/* Click hint */}
       {!disabled && !isFlipping && result === null && (
         <motion.div
           className="absolute flex flex-col items-center gap-1 pointer-events-none"
           style={{ top: -2 }}
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2 }}
         >
-          <motion.div animate={{ y: [0, -7, 0] }} transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M12 19V5M5 12l7-7 7 7" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+          <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2v-4M9 21H5a2 2 0 0 1-2-2v-4m0 0h18" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </motion.div>
-          <span style={{ color: 'var(--accent)', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', opacity: 0.5 }}>SWIPE UP</span>
+          <span style={{ color: 'var(--accent)', fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', opacity: 0.5 }}>CLICK TO FLIP</span>
         </motion.div>
       )}
 
@@ -140,6 +140,7 @@ export default function Coin({ onSwipeUp, isFlipping, result, disabled }: CoinPr
               cursor: disabled || isFlipping ? 'default' : 'grab',
               touchAction: 'none',
             }}
+            onClick={() => { if (!disabled && !isFlipping) onFlip() }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}

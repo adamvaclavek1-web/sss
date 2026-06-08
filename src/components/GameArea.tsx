@@ -22,7 +22,7 @@ type GameState = 'choosing' | 'flipping' | 'result-win' | 'result-loss' | 'rerol
 
 export default function GameArea({ profile, userId, onProfileUpdate }: GameAreaProps) {
   const [gameState, setGameState] = useState<GameState>('choosing')
-  const [choice, setChoice] = useState<CoinSide | null>(null)
+  const [choice, setChoice] = useState<CoinSide>('heads')
   const [flipResult, setFlipResult] = useState<FlipResult | null>(null)
   const [coinResult, setCoinResult] = useState<'heads' | 'tails' | null>(null)
   const [currentStreak, setCurrentStreak] = useState(profile?.current_streak ?? 0)
@@ -160,7 +160,7 @@ export default function GameArea({ profile, userId, onProfileUpdate }: GameAreaP
 
   const isFlipping = gameState === 'flipping'
   const showResult = gameState === 'result-win' || gameState === 'result-loss'
-  const coinDisabled = isFlipping || showResult || !choice
+  const coinDisabled = isFlipping || showResult
 
   return (
     <>
@@ -206,7 +206,7 @@ export default function GameArea({ profile, userId, onProfileUpdate }: GameAreaP
           </AnimatePresence>
 
           <Coin
-            onSwipeUp={handleFlip}
+            onFlip={handleFlip}
             isFlipping={isFlipping}
             result={showResult ? coinResult : null}
             disabled={coinDisabled}
@@ -274,17 +274,7 @@ export default function GameArea({ profile, userId, onProfileUpdate }: GameAreaP
             animate={{ opacity: 1 }}
             className="text-xs text-gray-500 text-center"
           >
-            Swipe the coin upward to flip
-          </motion.p>
-        )}
-        {!showResult && !choice && (
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="text-xs text-gray-500 text-center"
-          >
-            Pick a side, then swipe the coin
+            Click or swipe the coin to flip
           </motion.p>
         )}
       </div>
