@@ -26,6 +26,20 @@ export async function POST(request: NextRequest) {
     const priceInCents = getRerollPriceInCents(rerollCount)
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
+    // TEST MODE: skip Stripe when no real key is configured
+    if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY.startsWith('your_')) {
+      const restoredStreak = parseInt(currentStreak)
+      await supabase
+        .from('profiles')
+        .update({
+          current_streak: restoredStreak,
+          reroll_count: parseInt(rerollCount) + 1,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', userId)
+      return NextResponse.json({ url: `${appUrl}/?reroll_success=true&session_id=test` })
+    }
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
@@ -52,7 +66,6 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Log the purchase attempt
     await supabase.from('reroll_purchases').insert({
       user_id: userId,
       stripe_session_id: session.id,
