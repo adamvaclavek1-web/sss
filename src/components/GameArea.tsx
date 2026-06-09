@@ -268,13 +268,14 @@ export default function GameArea({ profile, userId, onProfileUpdate }: GameAreaP
         </AnimatePresence>
 
         {/* Flip instruction */}
-        {!showResult && choice && !isFlipping && (
+        {!showResult && !isFlipping && (
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-xs text-gray-500 text-center"
+            className="text-xs text-center"
+            style={{ color: 'var(--text-muted)' }}
           >
-            Click or swipe the coin to flip
+            or swipe up
           </motion.p>
         )}
       </div>
